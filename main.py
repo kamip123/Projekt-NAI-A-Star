@@ -94,16 +94,49 @@ def uruchomProgram():
 
     createImage(output)
 
+    global label3
+    global label4
+    label3.destroy()
+    label4.destroy()
+
     routelengthint = str(len(wierzcholki))
     routelength = "Dlugość ścieżki: " + routelengthint
-    label = tk.Label(window, text=routelength, font=("Helvetica", 15))
-    label.grid(column=0, row=3)
+    label3 = tk.Label(window, text=routelength, font=("Helvetica", 15))
+    label3.grid(column=0, row=4)
 
     elapsedtime = math.floor(elapsed_time*100)/100
     elapsedtime = str(elapsedtime)
     elapsedtimestring = "Czas dzialania algorytmu: " + elapsedtime + " sekund"
-    label = tk.Label(window, text=elapsedtimestring, font=("Helvetica", 15))
-    label.grid(column=0, row=4)
+    label4 = tk.Label(window, text=elapsedtimestring, font=("Helvetica", 15))
+    label4.grid(column=0, row=5)
+
+
+# zmienia tryb - ruchy skośne lub bez
+def zmienTryb():
+    global typ
+    global label2
+    global buttonTryb
+    # swap po kliknieciu przycisku
+    if typ == 0:
+        typ = 1
+    else:
+        typ = 0
+
+    if typ == 0:
+        skosneLubBez = "Tryb bez ruchów skośnych"
+        buttonNameSkosneLubBez = "Zamien na ruchy skośne"
+    else:
+        skosneLubBez = "Tryb z ruchami skośnymi"
+        buttonNameSkosneLubBez = "Zamien na ruchy bez skosów"
+
+    label2.destroy()
+    buttonTryb.destroy()
+
+    label2 = tk.Label(window, text=skosneLubBez, font=("Helvetica", 15))
+    label2.grid(column=0, row=3)
+
+    buttonTryb = tk.Button(window, text=buttonNameSkosneLubBez, command=zmienTryb, fg="red")
+    buttonTryb.grid(column=2, row=1)
 
 
 # init interfejsu
@@ -116,23 +149,43 @@ def initInterface():
 
 # stworz interfejs
 def createWindow():
+
+    if typ == 0:
+        skosneLubBez = "Tryb bez ruchów skośnych"
+        buttonNameSkosneLubBez = "Zamien na ruchy skośne"
+    else:
+        skosneLubBez = "Tryb z ruchami skośnymi"
+        buttonNameSkosneLubBez = "Zamien na ruchy bez skosów"
+
     label = tk.Label(window, text="Projekt NAI - A* + interfejs graficzny", font=("Helvetica", 20))
     label.grid(column=0, row=0)
 
-    button = tk.Button(window, text="Uruchom program", command=uruchomProgram, fg="red")
-    button.grid(column=1, row=1)
+    buttonUruchom = tk.Button(window, text="Uruchom program", command=uruchomProgram, fg="red")
+    buttonUruchom.grid(column=1, row=1)
+
+    global buttonTryb
+    global label2
+
+    buttonTryb = tk.Button(window, text=buttonNameSkosneLubBez, command=zmienTryb, fg="red")
+    buttonTryb.grid(column=2, row=1)
 
     buttonZmiany = tk.Button(window, text="Zatwierdz zmiany", command=zmianyInput, fg="red")
     buttonZmiany.grid(column=2, row=7)
 
-    buttonZmiany = tk.Button(window, text="Resetuj", command=getValuesAgain, fg="red")
-    buttonZmiany.grid(column=3, row=7)
+    buttonResetuj = tk.Button(window, text="Resetuj", command=getValuesAgain, fg="red")
+    buttonResetuj.grid(column=3, row=7)
 
-    label = tk.Label(window, text="Długość ścieżki: ", font=("Helvetica", 15))
-    label.grid(column=0, row=3)
+    label2 = tk.Label(window, text=skosneLubBez, font=("Helvetica", 15))
+    label2.grid(column=0, row=3)
 
-    label = tk.Label(window, text="Czas dzialania algorytmu: ", font=("Helvetica", 15))
-    label.grid(column=0, row=4)
+    global label3
+    global label4
+
+    label3 = tk.Label(window, text="Długość ścieżki: ", font=("Helvetica", 15))
+    label3.grid(column=0, row=4)
+
+    label4 = tk.Label(window, text="Czas dzialania algorytmu: ", font=("Helvetica", 15))
+    label4.grid(column=0, row=5)
 
     global entryInputPNG
     global entryStart
@@ -187,9 +240,13 @@ def initializeWindow():
 
 # stworz obraz do wyswietlenia
 def createImage(inputPNG):
-    canvas = tk.Canvas(window, width=300, height=300)
+    canvas = tk.Canvas(window, width=400, height=400)
     imgToScale = Image.open(inputPNG).convert('RGBA')
-    imgToScale = imgToScale.resize((300, 300))
+    imgToScale = numpy.array(imgToScale)
+    imgToScale[finish[0]][finish[1]] = (0, 255, 0, 255)
+    imgToScale[start[0]][start[1]] = (255, 255, 0, 255)
+    imgToScale = Image.fromarray(imgToScale, 'RGBA')
+    imgToScale = imgToScale.resize((400, 400))
     labirynt = ImageTk.PhotoImage(imgToScale)
     canvas.image = labirynt
     canvas.grid(column=0, row=1)
@@ -225,6 +282,9 @@ def getValuesAgain():
     global output
     global outputt
     global inputPNG
+
+    if typ == 0:
+        zmienTryb()
 
     inputPNG = config.get('Config', 'input')
     start = config.get('Config', 'start')
@@ -262,14 +322,21 @@ def getValuesAgain():
 
 # metoda heurystyczna - Euclidian Distance
 def heuristic(a, b):
-    return math.sqrt((b[0] * a[0]) + (b[1] * a[1]))
+    if typ == 0:
+        return abs(b[0]-a[0]) + abs(b[1]-a[1])
+    else:
+        return math.sqrt(pow(b[0]-a[0], 2) + pow(b[1]-a[1], 2))
 
 
 # algorytm
 def astar(tablicaLabiryntu, start, goal):
-    neighbors = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
-    # bez skosow
-    # neighbors = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+    if typ == 1:
+        # z skosami
+        neighbors = [(1, 1), (-1, 1), (-1, -1), (1, -1),(1, 0), (0, 1), (-1, 0), (0, -1)]
+    else:
+        # bez skosow
+        neighbors = [(1, 0), (0, 1), (-1, 0), (0, -1)]
+
     closed_set = set()  # zbior wierzcholkow odwiedzonych
     openSet = []  # zbior nie odwiedzonych
 
@@ -300,6 +367,7 @@ def astar(tablicaLabiryntu, start, goal):
             neighbor = current[0] + i, current[1] + j
             #tentative_gScore koszt aktualnej sciezki + sasiad
             tentative_gScore = gScore[current] + heuristic(current, neighbor)
+
             # sprawdza czy nie wychodzi poza przedzial tablicy
             if 0 <= neighbor[0] < tablicaLabiryntu.shape[0]:
                 if 0 <= neighbor[1] < tablicaLabiryntu.shape[1]:
@@ -311,11 +379,14 @@ def astar(tablicaLabiryntu, start, goal):
             else:
                 # sciany x
                 continue
+
             #droga nie jest najlepsza wiec kontynuuj
             if neighbor in closed_set and tentative_gScore >= gScore.get(neighbor, 0):
                 continue
+
             #droga jest najlepsza wiec ja zapisz na stosie
             if tentative_gScore < gScore.get(neighbor, 0) or neighbor not in [i[1] for i in openSet]:
+
                 #zmienia dla kogo poszukujemy - sasiad staje sie aktualnym wezlem
                 came_from[neighbor] = current
                 gScore[neighbor] = tentative_gScore
@@ -324,13 +395,16 @@ def astar(tablicaLabiryntu, start, goal):
 
     return False
 
+
 # pocztek programu
 if __name__ == "__main__":
+    global typ
+    typ = 1
     getValues()
     initInterface()
 
 # todo
-#   1. Pokaz punkty startowe init interfejs
-#   2. Priority dla lini prostych zamiast skośnych
-#   3. Zmiana na manhatan i ruch bez skosow
-#   4. wymyśl coś jeszcze xd
+# DONE 1. Pokaz punkty startowe init interfejs
+# DONE 2. Priority dla lini prostych zamiast skośnych
+# DONE 3. Zmiana na manhatan i ruch bez skosow
+#      4. wymyśl coś jeszcze xd
